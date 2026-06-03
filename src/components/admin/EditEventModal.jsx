@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { doc, setDoc } from 'firebase/firestore'; // Cambiado a setDoc para mayor seguridad
-import { db, storage } from '../../config/firebase'; 
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { doc, setDoc } from 'firebase/firestore';
+import { db } from '../../config/firebase'; 
 import { X, Settings, Loader2, Save, Calendar, MapPin, Image as ImageIcon, Upload, Trash2, Link } from 'lucide-react';
 
 const EditEventModal = ({ evento, onClose }) => {
@@ -52,30 +51,24 @@ const EditEventModal = ({ evento, onClose }) => {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Validar que sea una imagen
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor selecciona un archivo de imagen válido.');
+      return;
+    }
+
     setUploading(true);
     try {
-      // 1. Intentamos subir a Firebase Storage
-      const fileName = `logos/logo_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
-      const storageRef = ref(storage, fileName);
-      
-      const snapshot = await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(snapshot.ref);
-      
-      setFormData(prev => ({ ...prev, logoUrl: downloadURL }));
-    } catch (error) {
-      console.warn("Storage upload failed, falling back to base64 compression:", error);
-      // Fallback a Base64 comprimido
-      try {
-        const base64Data = await compressImage(file);
-        if (base64Data) {
-          setFormData(prev => ({ ...prev, logoUrl: base64Data }));
-        } else {
-          alert("No se pudo procesar la imagen.");
-        }
-      } catch (err) {
-        console.error("Error compressing image:", err);
-        alert("Error al procesar el archivo.");
+      // Comprimimos directamente a Base64 — funciona sin necesidad de Firebase Storage
+      const base64Data = await compressImage(file);
+      if (base64Data) {
+        setFormData(prev => ({ ...prev, logoUrl: base64Data }));
+      } else {
+        alert('No se pudo procesar la imagen. Intenta con otro archivo.');
       }
+    } catch (err) {
+      console.error('Error al procesar la imagen:', err);
+      alert('Error al procesar el archivo.');
     } finally {
       setUploading(false);
     }
